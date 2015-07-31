@@ -19,7 +19,7 @@ type BalancerStatus struct {
 }
 
 type Apacher interface {
-  getBalancerManagerStatusPage() byte[]
+  getBalancerManagerStatusPage() []byte
   parseStatusHtmlPage(page io.Reader) error
   getDetailsFromUri(worker string) (string, BalancerStatus)
   action(action string, hosts []string, port string, uri string) map[string]string
@@ -121,21 +121,22 @@ func (a *Apache) parseStatusHtmlPage(page io.Reader) error {
   return nil
 }
 
-func (a Apache) getBalancerManagerStatusPage() byte[]{
+func (a Apache) getBalancerManagerStatusPage() []byte {
   response, err := http.Get(a.mainUrl + "/balancer-manager")
   if (err != nil || response.StatusCode != 200) {
-    panic(fmt.Println("Failed ", err, response))
+    panic(err)
   }
 
-  if body, err := ioutil.ReadAll(response.Body); err != nil {
+  body, err := ioutil.ReadAll(response.Body)
+  if err != nil {
     panic(err)
   }
   return body
 }
 
 func (a *Apache) GetStatusForAll() {
-  body := getBalancerManagerStatusPage()
-  if err = a.parseStatusHtmlPage(strings.NewReader(string(body))); err != nil {
+  body := a.getBalancerManagerStatusPage()
+  if err := a.parseStatusHtmlPage(strings.NewReader(string(body))); err != nil {
     panic(err)
   }
 }
