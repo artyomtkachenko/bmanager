@@ -19,13 +19,14 @@ type BalancerStatus struct {
 }
 
 type Apacher interface {
-  GetStatusForAll()
-  GetStatus(hosts []string, port string, uri string) map[string]string
+  getBalancerManagerStatusPage() byte[]
+  parseStatusHtmlPage(page io.Reader) error
   getDetailsFromUri(worker string) (string, BalancerStatus)
   action(action string, hosts []string, port string, uri string) map[string]string
+  GetStatusForAll()
+  GetStatus(hosts []string, port string, uri string) map[string]string
   Disable(hosts []string, port string, uri string)
   Enable(hosts []string, port string, uri string)
-  ParseStatusHtmlPage(page io.Reader) error
 }
 
 type Apache struct{
@@ -62,7 +63,7 @@ func (a Apache) getDetailsFromUri(worker string, status string) (string, Balance
   return u.Host, w
 }
 
-func (a *Apache) ParseStatusHtmlPage(page io.Reader) error {
+func (a *Apache) parseStatusHtmlPage(page io.Reader) error {
   // Do not like this impementation
   z      := html.NewTokenizer(page)
   a.statusAll = make(map[string]BalancerStatus)
@@ -120,15 +121,23 @@ func (a *Apache) ParseStatusHtmlPage(page io.Reader) error {
   return nil
 }
 
-func (a *Apache) GetStatusForAll() {
+func (a Apache) getBalancerManagerStatusPage() byte[]{
   response, err := http.Get(a.mainUrl + "/balancer-manager")
+  if (err != nil || response.StatusCode != 200) {
+    panic(fmt.Println("Failed ", err, response))
+  }
 
-  if err != nil { panic(err) }
-  body, err := ioutil.ReadAll(response.Body)
+  if body, err := ioutil.ReadAll(response.Body); err != nil {
+    panic(err)
+  }
+  return body
+}
 
-  err = a.ParseStatusHtmlPage(strings.NewReader(string(body)))
-
-  if err != nil { panic(err) }
+func (a *Apache) GetStatusForAll() {
+  body := getBalancerManagerStatusPage()
+  if err = a.parseStatusHtmlPage(strings.NewReader(string(body))); err != nil {
+    panic(err)
+  }
 }
 
 func (a Apache) GetStatus(hosts []string, port string, uri string) map[string]string {
