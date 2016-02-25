@@ -1,18 +1,20 @@
 package apache
 
 import (
-  "testing"
+	"testing"
 )
 
-func TestInit(t *testing.T) {
-  inst := new(Apache22)
-  inst.Init("foo", "bar")
+func TestNew(t *testing.T) {
+	var inst Apache22
+	inst.New("apache", "/balancer-manager")
 
-  if inst.kind != "foo" && inst.kind != "bar" {
-    t.Errorf("Expected foo and bar, got %s and %s\n", inst.kind, inst.mainUrl)
-  }
+	if inst.kind != "apache" {
+		t.Errorf("Expected apache, got %s\n", inst.kind)
+	}
+	if inst.mainUrl != "/balancer-manager" {
+		t.Errorf("Expected /balancer-manager, got %s\n", inst.mainUrl)
+	}
 }
 
-func TestGetStatusForAll(t *testing.T) {
-
+func TestgetDetailsFromUri(t *testing.T) {
 }
