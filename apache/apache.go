@@ -73,7 +73,6 @@ func (self Apache) getWorkerUrl(host string, port string, uri string) string {
 }
 
 func (self *Apache) parseStatusHtmlPage(page io.Reader) error {
-	// Do not like this impementation
 	z := html.NewTokenizer(page)
 	self.status = make(map[string]BalancerStatus)
 	var (
@@ -85,6 +84,7 @@ func (self *Apache) parseStatusHtmlPage(page io.Reader) error {
 		hrefFound = false
 		tdCount   = 0
 		dtCount   = 0
+		dtFound   = false
 		balancer  string
 		status    string
 	)
@@ -127,7 +127,8 @@ func (self *Apache) parseStatusHtmlPage(page io.Reader) error {
 
 		case html.TextToken:
 			val := z.Text()
-			if dtCount == 1 {
+			if dtCount == 1 && !dtFound {
+				dtFound = true
 				if strings.Contains(string(val), "Oracle-HTTP-Server") {
 					self.kind = "ohs"
 					self.disableArg = "&dw=Disable"

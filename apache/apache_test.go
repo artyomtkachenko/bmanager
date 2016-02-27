@@ -87,7 +87,7 @@ func TestParseStatusHtmlPage(t *testing.T) {
 	}
 
 	realData := (inst).status
-	fmt.Printf("%+v\n", realData)
+	/* fmt.Printf("%+v\n", realData) */
 	for key, value := range testData {
 		if realData[key].uri != value.uri {
 			t.Errorf("Expected: %s, got %s\n", value.uri, realData[key].uri)
@@ -101,18 +101,19 @@ func TestParseStatusHtmlPage(t *testing.T) {
 	}
 }
 
-// func TestGetStatus(t *testing.T) {
-// 	inst := Apache{
-// 		Url: "http://localhost/balancer-manager",
-// 	}
-// 	body, _ := ioutil.ReadFile("testdata/bm.html")
-// 	(inst).parseStatusHtmlPage(strings.NewReader(string(body)))
-// 	hosts := []string{"host000013800", "obama"}
-// 	res := inst.GetStatus(hosts, "8084", "/bar")
-// 	if res["host000013800:8084/bar"] != "Okay" {
-// 		t.Errorf("Expected Okay, got: %s\n", res["host000013800:8084/bar"])
-// 	}
-// 	if res["obama:8084/bar"] != "NO WORKER FOUND" {
-// 		t.Errorf("Expected NO WORKER FOUND, got: %s\n", res["obama"])
-// 	}
-// }
+func TestGetStatusForAll(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := ioutil.ReadFile("testdata/bm.html")
+		fmt.Fprint(w, string(body))
+	}))
+	defer ts.Close()
+
+	inst := Apache{
+		Url: ts.URL,
+	}
+	(inst).getStatusForAll()
+
+	if (inst).kind != "ohs" {
+		t.Errorf("Expected: server kind to be ohs, got %s\n", (inst).kind)
+	}
+}
