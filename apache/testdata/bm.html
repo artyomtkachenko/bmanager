@@ -1,0 +1,43 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html><head><title>Balancer Manager</title></head>
+<body><h1>Load Balancer Manager for www-foobar.com.au</h1>
+
+<dl><dt>Server Version: Oracle-Application-Server- Oracle-HTTP-Server </dt>
+<dt>Server Built: 
+</dt></dl>
+<hr />
+<h3>LoadBalancer Status for balancer://foo</h3>
+
+
+
+<table border="0" style="text-align: left;"><tr><th>StickySession</th><th>Timeout</th><th>FailoverAttempts</th><th>Method</th></tr>
+<tr><td> - </td><td>0</td><td>1</td>
+<td>byrequests</td>
+</table>
+<br />
+
+<table border="0" style="text-align: left;"><tr><th>Worker URL</th><th>Route</th><th>RouteRedir</th><th>Factor</th><th>Set</th><th>Status</th><th>Elected</th><th>To</th><th>From</th></tr>
+<tr>
+<td><a href="/balancer-manager/?b=foo&w=http://host000003900:8083/foo&nonce=2afae676-da25-11e5-bf61-cff14dcff070">http://host000003900.:8083/foo</a></td><td>0</td><td></td><td>1</td><td>0</td><td>Ok</td><td>28313</td><td> 62M</td><td>502M</td></tr>
+<tr>
+<td><a href="/balancer-manager/?b=foo&w=http://host000004000:8083/foo&nonce=2afae676-da25-11e5-bf61-cff14dcff070">http://host000004000.:8083/foo</a></td><td>1</td><td></td><td>1</td><td>0</td><td>Dis</td><td>28148</td><td> 62M</td><td>485M</td></tr>
+</table>
+<hr />
+<h3>LoadBalancer Status for balancer://bar</h3>
+
+
+
+<table border="0" style="text-align: left;"><tr><th>StickySession</th><th>Timeout</th><th>FailoverAttempts</th><th>Method</th></tr>
+<tr><td> - </td><td>0</td><td>1</td>
+<td>byrequests</td>
+</table>
+<br />
+
+<table border="0" style="text-align: left;"><tr><th>Worker URL</th><th>Route</th><th>RouteRedir</th><th>Factor</th><th>Set</th><th>Status</th><th>Elected</th><th>To</th><th>From</th></tr>
+<tr>
+<td><a href="/balancer-manager/?b=bar&w=http://host000013700:8084/bar&nonce=2afae676-da25-11e5-bf61-cff14dcff070">http://host000013700.:8084/bar</a></td><td>0</td><td></td><td>1</td><td>0</td><td>Ok</td><td>12</td><td> 22K</td><td> 84K</td></tr>
+<tr>
+<td><a href="/balancer-manager/?b=bar&w=http://host000013800:8084/bar&nonce=2afae676-da25-11e5-bf61-cff14dcff070">http://host000013800.:8084/bar</a></td><td>1</td><td></td><td>1</td><td>0</td><td>Okay</td><td>12</td><td> 22K</td><td>395K</td></tr>
+</table>
+<hr />
+</body></html>

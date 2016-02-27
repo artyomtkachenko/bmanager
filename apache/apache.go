@@ -3,8 +3,8 @@ package apache
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
-	//	"github.com/golang/net/html"
 	"golang.org/x/net/html"
 	"io"
 	"io/ioutil"
@@ -20,53 +20,71 @@ type BalancerStatus struct {
 }
 
 type Apache struct {
-	statusAll map[string]BalancerStatus
-	mainUrl   string
-	kind      string
+	Url        string
+	status     map[string]BalancerStatus
+	kind       string
+	disableArg string
+	enableArg  string
 }
 
-type Apache22 struct {
-	Apache
+func check(err error) {
+	if err != nil {
+		panic(err)
+	}
 }
 
-func (a *Apache) New(kind string, mainUrl string) {
-	a.kind = kind
-	a.mainUrl = mainUrl
+func sendRequest(url string) ([]byte, error) {
+	response, err := http.Get(url) //fires the HTTP request
+	if err != nil || response.StatusCode != 200 {
+		return []byte(""), errors.New("Could not execute " + url)
+	}
+	body, err := ioutil.ReadAll(response.Body)
+	check(err)
+	return body, nil
 }
 
-func (a Apache) getDetailsFromUri(worker string, status string) (string, BalancerStatus) {
-	workerFull := a.mainUrl + worker
+func (self Apache) getDetailsFromUri(worker string, status string) (string, BalancerStatus) {
+	workerFull := self.Url + worker
 	var w = BalancerStatus{}
 	w.status = status
 	w.url = workerFull
 
 	u, err := url.Parse(workerFull)
-	if err != nil {
-		panic(err)
-	}
+	check(err)
 
 	m, _ := url.ParseQuery(u.RawQuery)
 	workerUrl := m["w"][0]
-	if err != nil {
-		panic(err)
-	}
+	check(err)
+
 	u, err = url.Parse(workerUrl)
+	check(err)
 	w.uri = u.Path
 
 	return u.Host, w
 }
 
-func (a *Apache) parseStatusHtmlPage(page io.Reader) error {
+func (self Apache) getWorkerUrl(host string, port string, uri string) string {
+
+	if port == "80" {
+		return host + uri
+	} else {
+		return host + ":" + port + uri
+	}
+}
+
+func (self *Apache) parseStatusHtmlPage(page io.Reader) error {
 	// Do not like this impementation
 	z := html.NewTokenizer(page)
-	a.statusAll = make(map[string]BalancerStatus)
+	self.status = make(map[string]BalancerStatus)
 	var (
 		hrefTag   = []byte("href")
 		anchorTag = []byte("a")
 		tdTag     = []byte("td")
 		trTag     = []byte("tr")
+		dtTag     = []byte("dt")
 		hrefFound = false
 		tdCount   = 0
+		dtCount   = 0
 		balancer  string
 		status    string
 	)
@@ -85,12 +103,15 @@ func (a *Apache) parseStatusHtmlPage(page io.Reader) error {
 			if bytes.Equal(trTag, tag) && hrefFound {
 				tdCount = 0
 				hrefFound = false
-				host, res := a.getDetailsFromUri(balancer, status)
-				a.statusAll[host+res.uri] = res
+				host, res := self.getDetailsFromUri(balancer, status)
+				self.status[host+res.uri] = res
 			}
 
 		case html.StartTagToken:
 			tag, hasAttr := z.TagName()
+			if bytes.Equal(dtTag, tag) {
+				dtCount += 1
+			}
 			if hrefFound {
 				if bytes.Equal(tdTag, tag) {
 					tdCount += 1
@@ -106,6 +127,17 @@ func (a *Apache) parseStatusHtmlPage(page io.Reader) error {
 
 		case html.TextToken:
 			val := z.Text()
+			if dtCount == 1 {
+				if strings.Contains(string(val), "Oracle-HTTP-Server") {
+					self.kind = "ohs"
+					self.disableArg = "&dw=Disable"
+					self.enableArg = "&dw=Enable"
+				} else {
+					self.kind = "vanilla"
+					self.disableArg = "&status_D=1"
+					self.enableArg = "&status_D=0"
+				}
+			}
 			if tdCount == 5 { //Balancer status seats at td[6]
 				status = string(val)
 			}
@@ -114,108 +146,56 @@ func (a *Apache) parseStatusHtmlPage(page io.Reader) error {
 	return nil
 }
 
-func (a Apache) getBalancerManagerStatusPage() []byte {
-	response, err := http.Get(a.mainUrl + "/balancer-manager")
-	if err != nil || response.StatusCode != 200 {
-		panic(err)
-	}
-
-	body, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		panic(err)
-	}
-	return body
+func generateReport(result map[string]string) {
+	out, err := json.Marshal(result)
+	check(err)
+	fmt.Println(string(out))
 }
 
-func (a *Apache) GetStatusForAll() {
-	body := a.getBalancerManagerStatusPage()
-	if err := a.parseStatusHtmlPage(strings.NewReader(string(body))); err != nil {
-		panic(err)
-	}
+// Gets statuses for all workers
+func (self *Apache) getStatusForAll() {
+	body, _ := sendRequest(self.Url)
+	err := self.parseStatusHtmlPage(strings.NewReader(string(body)))
+	check(err)
 }
 
-func (a Apache) GetStatus(hosts []string, port string, uri string) map[string]string {
-	var result = make(map[string]string)
-	for _, host := range hosts {
-		var hostPortUri string
-
-		if port != "80" {
-			hostPortUri = host + ":" + port + uri
-		} else {
-			hostPortUri = host + uri
-		}
-		if data, ok := a.statusAll[hostPortUri]; ok {
-			result[hostPortUri] = data.status
-		} else {
-			result[hostPortUri] = "NO WORKER FOUND"
-		}
-	}
-	return result
-}
-
-func (a Apache) action(action string, hosts []string, port string, uri string) map[string]string {
-	status := a.GetStatus(hosts, port, uri)
-	var (
-		act         string
-		flag        string
-		hostPortUri string
-		result      map[string]string
-	)
-
-	result = make(map[string]string)
-
-	if action == "disable" { //TODO make this nicer somehow
-		if a.kind == "vanilla" {
-			act = "&status_D=1"
-			flag = "Init Dis "
-		} else { // We presume it is OHS
-			act = "&dw=Disable"
-			flag = "Dis "
-		}
-	} else if action == "enable" {
-		if a.kind == "vanilla" {
-			act = "&status_D=0"
-			flag = "Init Ok "
-		} else { // We presume it is OHS
-			act = "&dw=Enable"
-			flag = "Ok "
-		}
-	}
+//Performs enable,  disable or status actions
+func (self Apache) action(action string, hosts []string, port string, uri string) {
+	result := make(map[string]string)
+	self.getStatusForAll()
 
 	for _, host := range hosts {
-		if port == "80" {
-			hostPortUri = host + uri
-		} else {
-			hostPortUri = host + ":" + port + uri
-		}
-		if status[hostPortUri] == "NO WORKER FOUND" {
-			result[hostPortUri] = status[hostPortUri]
-		} else if a.statusAll[hostPortUri].status != flag {
-			url := a.statusAll[hostPortUri].url + act
-			// fmt.Printf("Sending %s\n", url)
-			response, err := http.Get(url)
-			if err == nil && response.StatusCode == 200 {
-				result[hostPortUri] = action + "d"
+		hostPortUri := self.getWorkerUrl(host, port, uri)
+		if action == "status" {
+			if data, ok := self.status[hostPortUri]; ok {
+				result[hostPortUri] = data.status
 			} else {
-				panic(err)
+				result[hostPortUri] = "NO WORKER FOUND"
 			}
 		} else {
-			result[hostPortUri] = "Is already in " + flag + " state"
+			url := self.status[hostPortUri].url + action
+			_, err := sendRequest(url)
+			check(err)
 		}
 	}
-	return result
-}
-
-func (a Apache) Disable(hosts []string, port string, uri string) {
-	res := a.action("disable", hosts, port, uri)
-	if out, err := json.Marshal(res); err == nil {
-		fmt.Println(string(out))
+	if action == "status" {
+		generateReport(result)
 	}
 }
 
-func (a Apache) Enable(hosts []string, port string, uri string) {
-	res := a.action("enable", hosts, port, uri)
-	if out, err := json.Marshal(res); err == nil {
-		fmt.Println(string(out))
-	}
+//Returns the current status
+func (self Apache) Status(hosts []string, port string, uri string) {
+	self.action("status", hosts, port, uri)
+}
+
+//Disables workers
+func (self Apache) Disable(hosts []string, port string, uri string) {
+	self.action(self.disableArg, hosts, port, uri)
+	self.action("status", hosts, port, uri)
+}
+
+//Enables workers
+func (self Apache) Enable(hosts []string, port string, uri string) {
+	self.action(self.enableArg, hosts, port, uri)
+	self.action("status", hosts, port, uri)
 }

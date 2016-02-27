@@ -9,9 +9,8 @@ import (
 )
 
 func main() {
-	hostnameFlag := flag.String("hostname", "http://192.168.122.133", "A hostname searving the /balancer-manager URI")
+	hostnameFlag := flag.String("hostname", "http://localhost", "A hostname searving the /balancer-manager URI")
 	actionFlag := flag.String("action", "status", "Action disable|enable|status")
-	targetFlag := flag.String("target", "apache22", "Target apache22|ohs")
 	hostsFlag := flag.String("hosts", "", "Comma-separated list of workers")
 	portFlag := flag.String("port", "80", "Workers port")
 	uriFlag := flag.String("uri", "", "Application uri")
