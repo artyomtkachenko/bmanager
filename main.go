@@ -1,9 +1,7 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
-	"fmt"
 	"github.com/artyomtkachenko/bmanager/apache"
 	"strings"
 )
@@ -17,24 +15,16 @@ func main() {
 	flag.Parse()
 
 	hosts := strings.Split(*hostsFlag, ",")
-	instance := new(apache.Apache22)
-
-	if *targetFlag == "apache22" {
-		instance.Init("vanilla", *hostnameFlag)
-	} else if *targetFlag == "ohs" {
-		instance.Init("ohs", *hostnameFlag)
+	instance := apache.Apache{
+		Url: *hostnameFlag + "/balancer-manager",
 	}
 
-	instance.GetStatusForAll()
-
-	if *actionFlag == "enable" {
+	switch *actionFlag {
+	case "enable":
 		instance.Enable(hosts, *portFlag, *uriFlag)
-	} else if *actionFlag == "disable" {
+	case "disable":
 		instance.Disable(hosts, *portFlag, *uriFlag)
-	} else {
-		res := instance.GetStatus(hosts, *portFlag, *uriFlag)
-		if out, err := json.Marshal(res); err == nil {
-			fmt.Println(string(out))
-		}
+	case "status":
+		instance.Status(hosts, *portFlag, *uriFlag)
 	}
 }
