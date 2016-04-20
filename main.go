@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"balancer-manager/apache"
+	"github.com/artyomtkachenko/bmanager/apache"
 )
 
 var version string

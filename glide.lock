@@ -1,0 +1,9 @@
+hash: cbc3c695511c1985276d761d9fcefc04115312443047c5f271caf56192458056
+updated: 2016-04-20T13:26:00.020109889+10:00
+imports:
+- name: golang.org/x/net
+  version: fb93926129b8ec0056f2f458b1f519654814edf0
+  subpackages:
+  - html
+  - html/atom
+devImports: []
